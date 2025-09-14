@@ -9,11 +9,11 @@ import (
 
 // SetupRoutes sets up all the routes for the application
 func SetupRoutes(app *fiber.App) {
-	// Health check route
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "success",
-			"message": "Hello, World 3!",
+			"message": "Go Validator API is running!",
+			"version": "1.0.0",
 		})
 	})
 
@@ -22,6 +22,6 @@ func SetupRoutes(app *fiber.App) {
 
 	// User routes
 	userRoutes := api.Group("/users")
-	userRoutes.Post("", middleware.ValidateUser, controller.CreateUser)
-	userRoutes.Get("", controller.GetUsers)
+	userRoutes.Get("/", controller.GetUsers)
+	userRoutes.Post("/", middleware.ValidateUser, controller.CreateUser)
 }

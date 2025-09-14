@@ -27,10 +27,18 @@ func CreateUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Create response without password
+	userResponse := models.UserResponse{
+		ID:    user.ID,
+		Age:   user.Age,
+		Name:  user.Name,
+		Email: user.Email,
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":  "success",
 		"message": "User created successfully",
-		"user":    user,
+		"user":    userResponse,
 	})
 }
 
@@ -45,8 +53,19 @@ func GetUsers(c *fiber.Ctx) error {
 		})
 	}
 
+	// Convert to response format (without passwords)
+	var userResponses []models.UserResponse
+	for _, user := range users {
+		userResponses = append(userResponses, models.UserResponse{
+			ID:    user.ID,
+			Age:   user.Age,
+			Name:  user.Name,
+			Email: user.Email,
+		})
+	}
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"users":  users,
+		"users":  userResponses,
 	})
 }
