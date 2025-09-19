@@ -3,15 +3,32 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go-validator/models"
 	"regexp"
+	"sync"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
 type rule struct {
 	pattern *regexp.Regexp
 	message string
+}
+
+var validate *validator.Validate
+var validatorInitOnce sync.Once
+
+func InitValidator() {
+	validate = validator.New()
+
+	// Custom validation for password complexity
+	validate.RegisterValidation("custom_password", func(fl validator.FieldLevel) bool {
+		password := fl.Field().String()
+		errs := DoesPasswordMeetCriteria(password)
+		return len(errs) == 0
+	})
 }
 
 func ValidateUser(c *fiber.Ctx) error {
@@ -28,49 +45,23 @@ func ValidateUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// validate name is not empty
-	if len(user.Name) < 5 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Name must be at least 5 characters long",
-		})
-	}
+	// Ensure validator is initialized (safe on first use)
+	validatorInitOnce.Do(InitValidator)
 
-	// Age must be between 18 and 100
-	if user.Age < 18 || user.Age > 100 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Age must be between 18 and 100",
-		})
-	}
+	// run validator
+	if err := validate.Struct(user); err != nil {
+		errors := []string{}
 
-	if user.Email == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Email is required",
-		})
-	}
+		for _, err := range err.(validator.ValidationErrors) {
+			if err.Field() == "Password" {
+				errors = append(errors, DoesPasswordMeetCriteria(user.Password)...)
+			} else {
+				errors = append(errors, fmt.Sprintf("Field '%s': %s", err.Field(), err.Error()))
+			}
+		}
 
-	// Email must contain "@" symbol
-	if len(user.Email) < 5 || !bytes.Contains([]byte(user.Email), []byte("@")) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Email must be a valid email address",
-		})
-	}
-
-	if user.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Password is required",
-		})
-	}
-
-	// Password check
-	if !doesPasswordMeetCriteria(user.Password) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one digit, and one special character",
+			"validation_errors": errors,
 		})
 	}
 
@@ -79,9 +70,10 @@ func ValidateUser(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func doesPasswordMeetCriteria(password string) bool {
+func DoesPasswordMeetCriteria(password string) []string {
+	var errs []string
 	if len(password) < 8 {
-		return false
+		errs = append(errs, "Password must be at least 8 characters long")
 	}
 
 	var rules = []rule{
@@ -93,9 +85,9 @@ func doesPasswordMeetCriteria(password string) bool {
 
 	for _, r := range rules {
 		if !r.pattern.MatchString(password) {
-			return false
+			errs = append(errs, "Password must contain "+r.message)
 		}
 	}
 
-	return true
+	return errs
 }

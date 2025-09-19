@@ -2,6 +2,7 @@ package main
 
 import (
 	"go-validator/database"
+	"go-validator/middleware"
 	"go-validator/models"
 	"go-validator/routes"
 
@@ -20,6 +21,9 @@ func main() {
 
 	// setup fiber app
 	app := fiber.New()
+
+	// initialize validator and custom rules
+	middleware.InitValidator()
 
 	// setup routes
 	routes.SetupRoutes(app)
