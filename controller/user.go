@@ -11,20 +11,12 @@ func CreateUser(c *fiber.Ctx) error {
 	var user models.User
 
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Cannot parse JSON",
-			"error":   err.Error(),
-		})
+		return models.ErrorResponse(c, fiber.StatusBadRequest, "Cannot parse JSON", []string{err.Error()})
 	}
 
 	// save to database
 	if err := database.DB.Create(&user).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Could not create user",
-			"error":   err.Error(),
-		})
+		return models.InternalErrorResponse(c, "Could not create user: "+err.Error())
 	}
 
 	// Create response without password
@@ -35,22 +27,14 @@ func CreateUser(c *fiber.Ctx) error {
 		Email: user.Email,
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
-		"message": "User created successfully",
-		"user":    userResponse,
-	})
+	return models.CreatedResponse(c, "User created successfully", userResponse)
 }
 
 func GetUsers(c *fiber.Ctx) error {
 	var users []models.User
 
 	if err := database.DB.Find(&users).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Could not retrieve users",
-			"error":   err.Error(),
-		})
+		return models.InternalErrorResponse(c, "Could not retrieve users")
 	}
 
 	// Convert to response format (without passwords)
@@ -64,8 +48,5 @@ func GetUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"users":  userResponses,
-	})
+	return models.SuccessResponse(c, "Users retrieved successfully", userResponses)
 }

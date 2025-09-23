@@ -38,11 +38,7 @@ func ValidateUser(c *fiber.Ctx) error {
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Cannot parse JSON",
-			"error":   err.Error(),
-		})
+		return models.ErrorResponse(c, fiber.StatusBadRequest, "Cannot parse JSON", []string{err.Error()})
 	}
 
 	// Ensure validator is initialized (safe on first use)
@@ -60,9 +56,7 @@ func ValidateUser(c *fiber.Ctx) error {
 			}
 		}
 
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"validation_errors": errors,
-		})
+		return models.ErrorResponse(c, fiber.StatusBadRequest, "Validation failed", errors)
 	}
 
 	c.Locals("user", user)
